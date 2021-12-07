@@ -20,6 +20,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	void UpdateLocationFromVelocty(float DeltaTime);
+	void ApplyRotation(float DeltaTime);
 
 public:	
 	// Called every frame
@@ -33,8 +34,14 @@ protected:
 	UFUNCTION()
 	void MoveForward(float Value);
 
+	UFUNCTION()	 
+	void MoveRight(float Val);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float Speed = 20.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float MaxDegreesPerSecond = 90.f;
 
 	//Mass of object in (kg)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
@@ -46,7 +53,12 @@ protected:
 
 private:
 	FVector Velocity;
-
+	// поброс маппингов форвард движения из уе
 	float Throttle;
 
+	//проброс маппингов поворота из уе
+	float SteeringTrow;
+
 };
+
+

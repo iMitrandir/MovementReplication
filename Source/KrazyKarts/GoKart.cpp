@@ -2,7 +2,7 @@
 
 
 #include "GoKart.h"
-#include "Components/PrimitiveComponent.h"
+#include "Math/UnrealMathUtility.h"
 
 // Sets default values
 AGoKart::AGoKart()
@@ -56,21 +56,35 @@ void AGoKart::UpdateLocationFromVelocty(float DeltaTime)
 	//  //delete OutHitRsult; //для варианта с FHitresult* и new   */
 }
 
+void AGoKart::ApplyRotation(float DeltaTime)
+{
+	// поврот во времени в направлении
+	float RotationAngle = MaxDegreesPerSecond * DeltaTime * SteeringTrow;
+	//угол в кватерн
+	const FQuat RotationDelta(GetActorUpVector(), FMath::DegreesToRadians(RotationAngle));
+	Velocity = RotationDelta.RotateVector(Velocity);
+	
+	//повроты
+	AddActorLocalRotation(RotationDelta);
+}
+
 // Called every frame
 void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	
 	//v3// моделирование силы приложенной в какомто направлении
 	FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
 	FVector Acceleration = Force / Mass;
-															 
 	//изменение скорости во времени, учитывая ускорение 
-	Velocity = Velocity + Acceleration* DeltaTime; 
+	Velocity = Velocity + Acceleration * DeltaTime; 
+
+	//повроты
+	ApplyRotation(DeltaTime);
 	
+	// движение вперед
 	UpdateLocationFromVelocty(DeltaTime);
 
-	
 
 }
 
@@ -79,7 +93,9 @@ void AGoKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	
-	PlayerInputComponent->BindAxis("MoveForward", this, &AGoKart::MoveForward);	 
+	PlayerInputComponent->BindAxis("MoveForward", this, &AGoKart::MoveForward);
+
+	PlayerInputComponent->BindAxis("MoveRight", this, &AGoKart::MoveRight);
 }
 
 void AGoKart::MoveForward(float Value)
@@ -97,3 +113,7 @@ void AGoKart::MoveForward(float Value)
 
 }
 
+void AGoKart::MoveRight(float Val)
+{
+	SteeringTrow = Val;
+}
