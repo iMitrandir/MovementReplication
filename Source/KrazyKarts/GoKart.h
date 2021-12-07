@@ -19,6 +19,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	void UpdateLocationFromVelocty(float DeltaTime);
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -31,7 +33,20 @@ protected:
 	UFUNCTION()
 	void MoveForward(float Value);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float Speed = 20.f;
+
+	//Mass of object in (kg)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float Mass = 1000.f;
+
+	//максимальная сила которая может быть приложена к средству (N)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float MaxDrivingForce = 10000.f;
+
+private:
 	FVector Velocity;
+
+	float Throttle;
 
 };

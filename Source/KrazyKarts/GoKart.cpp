@@ -2,6 +2,7 @@
 
 
 #include "GoKart.h"
+#include "Components/PrimitiveComponent.h"
 
 // Sets default values
 AGoKart::AGoKart()
@@ -19,17 +20,57 @@ void AGoKart::BeginPlay()
 	   
 }
 
+void AGoKart::UpdateLocationFromVelocty(float DeltaTime)
+{
+	//v2//translation in meters dx = v * dt
+	FVector Translation = (Velocity*100)*DeltaTime;
+
+
+	//в этом случае вызывается конструктор по умолчанию и я могу использовать такую переменную в качестве аут парамтера, но передаю в фю вдрес
+	FHitResult OutHitRsult; 
+	
+	//v2//adding movement to actor, also checking for collision
+	AddActorWorldOffset(Translation, true, &OutHitRsult);
+	
+	if(OutHitRsult.IsValidBlockingHit())
+	{
+		Velocity = FVector::ZeroVector;
+	}
+	
+	/*
+	///////////////////// пример мемори менеджмента //////////////
+	//  //создавая указатель и инициализируя его нуллптр я не видляю фактически память под обьект\структуру, по этому запись FHitResult* OutHitRsult=nullptr я не мог использовать как аут параметр - туда ничего не записывалось, а просто брался нулл птр. Но используюя запись через new я выделяю память и могу использваоть ее как аут параметр - это работало.
+	
+	// 	FHitResult* OutHitRsult= new FHitResult();	
+	//
+	//  
+	//
+	// 	//v2//adding movement to actor, also checking for collision
+	// 	AddActorWorldOffset(Translation, true, OutHitRsult);
+	//
+	// 	if(OutHitRsult->IsValidBlockingHit())
+	// 	{
+	// 		Velocity = FVector::ZeroVector;
+	// 	}
+
+	//  //delete OutHitRsult; //для варианта с FHitresult* и new   */
+}
+
 // Called every frame
 void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//v2//translation in meters
-	FVector Translation = (Velocity*100)*DeltaTime;
+	//v3// моделирование силы приложенной в какомто направлении
+	FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
+	FVector Acceleration = Force / Mass;
+															 
+	//изменение скорости во времени, учитывая ускорение 
+	Velocity = Velocity + Acceleration* DeltaTime; 
+	
+	UpdateLocationFromVelocty(DeltaTime);
 
-	//v2//adding movement to actor
-	AddActorWorldOffset(Translation);
-
+	
 
 }
 
@@ -49,7 +90,10 @@ void AGoKart::MoveForward(float Value)
 	SetActorLocation(NewLocation);*/
 
 	//v2// на какое расстояние нужно передаивнутся по направлению форвад вектора
-	Velocity = GetActorForwardVector()* 20 * Value;
+	//Velocity = GetActorForwardVector()* Speed * Value;
+
+	//v3// моделирование силы приложенной к массе в какомто направлении
+	Throttle  = Value;
 
 }
 
