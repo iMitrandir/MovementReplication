@@ -68,6 +68,15 @@ void AGoKart::ApplyRotation(float DeltaTime)
 	AddActorLocalRotation(RotationDelta);
 }
 
+FVector AGoKart::GetResistance()
+{
+	float Speed = Velocity.Size();
+	////Velocity.SizeSquared();// == FMath::Square(Speed)      
+	float AirResistance = -1  * Velocity.SizeSquared() * DragCoefficient; 
+
+	return Velocity.GetSafeNormal() * AirResistance;
+}
+
 // Called every frame
 void AGoKart::Tick(float DeltaTime)
 {
@@ -75,16 +84,18 @@ void AGoKart::Tick(float DeltaTime)
 	
 	//v3// моделирование силы приложенной в какомто направлении
 	FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
+	// учитываем драг форс давление воздуха
+	Force = Force + GetResistance();		
+
 	FVector Acceleration = Force / Mass;
 	//изменение скорости во времени, учитывая ускорение 
-	Velocity = Velocity + Acceleration * DeltaTime; 
-
+	Velocity = Velocity + Acceleration * DeltaTime;
+	
 	//повроты
 	ApplyRotation(DeltaTime);
 	
 	// движение вперед
 	UpdateLocationFromVelocty(DeltaTime);
-
 
 }
 

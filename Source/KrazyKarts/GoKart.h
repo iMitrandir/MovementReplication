@@ -21,6 +21,7 @@ protected:
 
 	void UpdateLocationFromVelocty(float DeltaTime);
 	void ApplyRotation(float DeltaTime);
+	FVector  GetResistance();
 
 public:	
 	// Called every frame
@@ -37,8 +38,8 @@ protected:
 	UFUNCTION()	 
 	void MoveRight(float Val);
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float Speed = 20.f;
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	// float Speed = 20.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float MaxDegreesPerSecond = 90.f;
@@ -50,6 +51,10 @@ protected:
 	//максимальная сила которая может быть приложена к средству (N)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float MaxDrivingForce = 10000.f;
+
+	//коефициент аэоодинамики, чем он больше, тем больше будет AirResistance
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float DragCoefficient = 16.f;
 
 private:
 	FVector Velocity;
