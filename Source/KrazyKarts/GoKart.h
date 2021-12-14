@@ -21,7 +21,10 @@ protected:
 
 	void UpdateLocationFromVelocty(float DeltaTime);
 	void ApplyRotation(float DeltaTime);
-	FVector  GetResistance();
+
+	//силы действующие на авто против движеня 
+	FVector  GetAirResistance();
+	FVector  GetRollingResistance();
 
 public:	
 	// Called every frame
@@ -35,14 +38,20 @@ protected:
 	UFUNCTION()
 	void MoveForward(float Value);
 
-	UFUNCTION()	 
+	UFUNCTION()	
 	void MoveRight(float Val);
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_MoveForward(float Value);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_MoveRight(float Val);
 
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	// float Speed = 20.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float MaxDegreesPerSecond = 90.f;
+	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float MaxDegreesPerSecond = 90.f;*/
 
 	//Mass of object in (kg)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
@@ -56,6 +65,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float DragCoefficient = 16.f;
 
+	//коефициент трения, чем он больше, тем больше будет RollResistance
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float RollResistanceCoefficient = 0.015f;
+
+	//радиус поворота мошины
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
+	float RotationCircleRadius = 10.f;
+
 private:
 	FVector Velocity;
 	// поброс маппингов форвард движения из уе
@@ -63,6 +80,8 @@ private:
 
 	//проброс маппингов поворота из уе
 	float SteeringTrow;
+
+	float TestTickTime = 0.0;
 
 };
 
