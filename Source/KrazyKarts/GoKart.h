@@ -19,6 +19,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	void UpdateLocationFromVelocty(float DeltaTime);
 	void ApplyRotation(float DeltaTime);
 
@@ -73,6 +75,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float RotationCircleRadius = 10.f;
 
+	UPROPERTY(Replicated)
+	FVector ReplicatedLocation;
+
+	
 private:
 	FVector Velocity;
 	// поброс маппингов форвард движения из уе
@@ -81,6 +87,7 @@ private:
 	//проброс маппингов поворота из уе
 	float SteeringTrow;
 
+	//тестовая переменная которая чсчитает время - накапливает тик
 	float TestTickTime = 0.0;
 
 };

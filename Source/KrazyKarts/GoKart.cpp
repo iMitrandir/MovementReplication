@@ -5,6 +5,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "UnrealNetwork.h"
 
 // Sets default values
 AGoKart::AGoKart()
@@ -13,6 +14,13 @@ AGoKart::AGoKart()
 	PrimaryActorTick.bCanEverTick = true;
 
 	
+}
+
+void AGoKart::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AGoKart, ReplicatedLocation);
 }
 
 static FString GetEnumRole (ENetRole Role)
@@ -34,6 +42,7 @@ void AGoKart::BeginPlay()
 	Super::BeginPlay();
 	   
 }
+
 
 void AGoKart::UpdateLocationFromVelocty(float DeltaTime)
 {
