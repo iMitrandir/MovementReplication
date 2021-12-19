@@ -21,6 +21,7 @@ void AGoKart::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(AGoKart, ReplicatedLocation);
+	DOREPLIFETIME(AGoKart, ReplicatedRotation);
 }
 
 static FString GetEnumRole (ENetRole Role)
@@ -46,8 +47,11 @@ void AGoKart::BeginPlay()
 
 void AGoKart::UpdateLocationFromVelocty(float DeltaTime)
 {
-	//v2//translation in meters dx = v * dt
-	FVector Translation = (Velocity*100)*DeltaTime;
+
+		//v2//translation in meters dx = v * dt
+		FVector Translation = (Velocity*100)*DeltaTime;
+		//ReplicatedLocation = (Velocity*100)*DeltaTime;
+
 
 
 	//в этом случае вызывается конструктор по умолчанию и я могу использовать такую переменную в качестве аут парамтера, но передаю в фю вдрес
@@ -128,28 +132,46 @@ FVector AGoKart::GetAirResistance()
 void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
-	  DrawDebugString(GetWorld(), FVector(0, 0, 130), GetEnumRole(GetLocalRole()), this, FColor::Blue, DeltaTime);
-	DrawDebugString(GetWorld(), FVector(0, 0, 150), GetEnumRole(GetRemoteRole()), this, FColor::Red, DeltaTime);
-	//для тестов
-	UE_LOG(LogTemp, Warning, TEXT("%f"), TestTickTime);
-	TestTickTime +=DeltaTime;
-	
-	//v3// моделирование силы приложенной в какомто направлении
-	FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
-	// учитываем драг форс давление воздуха
-	Force = Force + GetAirResistance() + GetRollingResistance();	
 
-	FVector Acceleration = Force / Mass;
-	//изменение скорости во времени, учитывая ускорение 
-	Velocity = Velocity + Acceleration * DeltaTime;
+	//скоуп для локальной и серверной симуляции
+	{
+		DrawDebugString(GetWorld(), FVector(0, 0, 130), GetEnumRole(GetLocalRole()), this, FColor::Blue, DeltaTime);
+		DrawDebugString(GetWorld(), FVector(0, 0, 150), GetEnumRole(GetRemoteRole()), this, FColor::Red, DeltaTime);
 	
-	//повроты
-	ApplyRotation(DeltaTime);
-	
-	// движение вперед
-	UpdateLocationFromVelocty(DeltaTime);
+		//для тестов
+		UE_LOG(LogTemp, Warning, TEXT("%f"), TestTickTime);
+		TestTickTime +=DeltaTime;
 
+		//v3// моделирование силы приложенной в какомто направлении
+		FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
+		// учитываем драг форс давление воздуха
+		Force = Force + GetAirResistance() + GetRollingResistance();	
+
+		FVector Acceleration = Force / Mass;
+		//изменение скорости во времени, учитывая ускорение 
+		Velocity = Velocity + Acceleration * DeltaTime;
+	
+	
+		//повроты
+		ApplyRotation(DeltaTime);
+	
+		// движение вперед
+		UpdateLocationFromVelocty(DeltaTime);
+	}
+
+	// но если сервер то подсчитай положение игрока и реплицируй его на прокси на клиенте
+	if(HasAuthority())
+	{
+		ReplicatedLocation = GetActorLocation();
+		ReplicatedRotation = GetActorRotation();
+	}
+	// если клиент - утанови положение актора из реплицуированой переменной. Слой поверх локальной симуляции
+	else
+	{
+		SetActorLocation(ReplicatedLocation);
+		SetActorRotation(ReplicatedRotation);
+	}
+		   
 }
 
 // Called to bind functionality to input

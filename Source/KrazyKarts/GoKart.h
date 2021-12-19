@@ -78,6 +78,9 @@ protected:
 	UPROPERTY(Replicated)
 	FVector ReplicatedLocation;
 
+	UPROPERTY(Replicated)
+	FRotator ReplicatedRotation;
+
 	
 private:
 	FVector Velocity;
