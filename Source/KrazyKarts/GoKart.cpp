@@ -12,6 +12,7 @@ AGoKart::AGoKart()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	
 
 	
 }
@@ -20,8 +21,11 @@ void AGoKart::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AGoKart, ReplicatedLocation);
-	DOREPLIFETIME(AGoKart, ReplicatedRotation);
+	DOREPLIFETIME(AGoKart, ReplicatedTransform);
+	DOREPLIFETIME(AGoKart, Velocity);
+	DOREPLIFETIME(AGoKart, SteeringTrow);
+	DOREPLIFETIME(AGoKart, Throttle);   
+
 }
 
 static FString GetEnumRole (ENetRole Role)
@@ -41,6 +45,12 @@ static FString GetEnumRole (ENetRole Role)
 void AGoKart::BeginPlay()
 {
 	Super::BeginPlay();
+
+	//просимулируем разные интервалы для репликации раз в секунду
+	if(HasAuthority())
+	{
+		NetUpdateFrequency = 1.f;
+	}
 	   
 }
 
@@ -99,7 +109,7 @@ void AGoKart::ApplyRotation(float DeltaTime)
 	float DeltaLocation = SpeedInDirection*DeltaTime;
 
 	///dQ = dx/r и умножаем на направление самого поворота     
-	float RotationAngleRadians = ( DeltaLocation / RotationCircleRadius)*SteeringTrow;   
+	float RotationAngleRadians = ( DeltaLocation / RotationCircleRadius)*SteeringTrow;   		
 
 	//угол в кватерн
 	const FQuat RotationDelta(GetActorUpVector(), RotationAngleRadians);
@@ -133,15 +143,16 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	//скоуп для локальной и серверной симуляции
+	///скоуп для локальной и серверной симуляции. Этот кусок будет срабатывать и локально и на сервере. Но реплицируемые пееменные с сервера будут периодически оверрайдить локальную симуляцию.
+	
 	{
+		
 		DrawDebugString(GetWorld(), FVector(0, 0, 130), GetEnumRole(GetLocalRole()), this, FColor::Blue, DeltaTime);
 		DrawDebugString(GetWorld(), FVector(0, 0, 150), GetEnumRole(GetRemoteRole()), this, FColor::Red, DeltaTime);
 	
-		//для тестов
+		/*//для тестов
 		UE_LOG(LogTemp, Warning, TEXT("%f"), TestTickTime);
-		TestTickTime +=DeltaTime;
-
+		TestTickTime +=DeltaTime;*/
 		//v3// моделирование силы приложенной в какомто направлении
 		FVector Force = GetActorForwardVector() * MaxDrivingForce * Throttle;
 		// учитываем драг форс давление воздуха
@@ -149,29 +160,27 @@ void AGoKart::Tick(float DeltaTime)
 
 		FVector Acceleration = Force / Mass;
 		//изменение скорости во времени, учитывая ускорение 
-		Velocity = Velocity + Acceleration * DeltaTime;
-	
-	
+		Velocity = Velocity + Acceleration * DeltaTime;      
+
+
+
 		//повроты
 		ApplyRotation(DeltaTime);
-	
+		
 		// движение вперед
 		UpdateLocationFromVelocty(DeltaTime);
 	}
 
-	// но если сервер то подсчитай положение игрока и реплицируй его на прокси на клиенте
-	if(HasAuthority())
+	 /// место где происходит синхронизация через реплицируемую переменную которая вызывает ф-ю на клиенте при изменении, трансформы на сервере. Изменение трансформы на сервере тригерит клиентский ивент дополнительно к самому апдейту переменной
 	{
-		ReplicatedLocation = GetActorLocation();
-		ReplicatedRotation = GetActorRotation();
+		// на сервере - подсчитай положение игрока и обнови реплицируемую переменную, котороая после ее изменения, с помошью мехинизма репликации запустит ОнРеп ф-ю на клиенте. Это более оптимально чем чекать в тике изменилась или нет переменная
+		if(HasAuthority())
+		{
+			ReplicatedTransform = GetActorTransform();
+		}
+
 	}
-	// если клиент - утанови положение актора из реплицуированой переменной. Слой поверх локальной симуляции
-	else
-	{
-		SetActorLocation(ReplicatedLocation);
-		SetActorRotation(ReplicatedRotation);
-	}
-		   
+	
 }
 
 // Called to bind functionality to input
@@ -192,9 +201,23 @@ void AGoKart::MoveForward(float Value)
 
 void AGoKart::MoveRight(float Value)
 {
+	/// если это AutonomousProxy то симуляция происходит локально игроком на своем компе и каждый тик машина знает значение SteeringTrow, но если это SimulatedProxy то это значит что симуляция происходит по средством передачи данных с сервера (а тут может быть лаг), грубо говори когда на сервере происходит MoveRight ф-я, клиент не знает SteeringTrow и он не может 
 	Server_MoveRight(Value);
+
 	SteeringTrow = Value;
 }
+
+void AGoKart::OnRep_ReplicatedLocation()
+{
+	UE_LOG(LogTemp,Warning, TEXT("Replicated location"));
+	
+	// если Autonomous or Simulated клиент - утанови положение актора из реплицуированой переменной. Слой поверх локальной симуляции. SetActorLocation происходит периодически только на клиенте
+	
+	{
+		SetActorTransform(ReplicatedTransform);
+	}
+}
+
 
 void AGoKart::Server_MoveForward_Implementation(float Value)
 {

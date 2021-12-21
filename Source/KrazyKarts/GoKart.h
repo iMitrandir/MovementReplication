@@ -75,19 +75,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float RotationCircleRadius = 10.f;
 
-	UPROPERTY(Replicated)
-	FVector ReplicatedLocation;
-
-	UPROPERTY(Replicated)
-	FRotator ReplicatedRotation;
-
 	
-private:
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedLocation)
+	FTransform ReplicatedTransform;
+
+	UFUNCTION()
+	void OnRep_ReplicatedLocation();
+
+	UPROPERTY(Replicated)
 	FVector Velocity;
-	// поброс маппингов форвард движения из уе
+
+private:
+	
+	// поброс маппингов форвард движения из уе. Реплицируются для того чтобы при лагах был известен последннее направление движения,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY(Replicated)
 	float Throttle;
 
-	//проброс маппингов поворота из уе
+	//проброс маппингов поворота из уе. Реплицируются для того чтобы при лагах был известно последннее направление поворота,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY(Replicated)
 	float SteeringTrow;
 
 	//тестовая переменная которая чсчитает время - накапливает тик
