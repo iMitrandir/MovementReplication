@@ -6,6 +6,41 @@
 #include "GameFramework/Pawn.h"
 #include "GoKart.generated.h"
 
+USTRUCT()
+struct FGoKartMove
+{
+	GENERATED_USTRUCT_BODY()
+	// поброс маппингов форвард движения из уе. Реплицируются для того чтобы при лагах был известен последннее направление движения,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY()
+	float Throttle;
+
+	//проброс маппингов поворота из уе. Реплицируются для того чтобы при лагах был известно последннее направление поворота,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY()
+	float SteeringTrow;
+
+	UPROPERTY()
+	float DeltaTime;
+
+	UPROPERTY()
+	float Time;	
+};
+
+USTRUCT()
+struct FGoKartState
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FTransform Transform;
+	
+	UPROPERTY()
+	FVector Velocity;
+
+	UPROPERTY()
+	FGoKartMove LastMove;
+	
+};
+
 UCLASS()
 class KRAZYKARTS_API AGoKart : public APawn
 {
@@ -44,10 +79,8 @@ protected:
 	void MoveRight(float Val);
 	
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveForward(float Value);
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveRight(float Val);
+	void Server_SendMove(FGoKartMove Value);
+	
 
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	// float Speed = 20.f;
@@ -75,15 +108,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float RotationCircleRadius = 10.f;
 
-	
-	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedLocation)
-	FTransform ReplicatedTransform;
+	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
+	FGoKartState ServerState;
 
 	UFUNCTION()
-	void OnRep_ReplicatedLocation();
+	void OnRep_ServerState();
 
-	UPROPERTY(Replicated)
-	FVector Velocity;
+
 
 private:
 	
@@ -97,7 +128,18 @@ private:
 
 	//тестовая переменная которая чсчитает время - накапливает тик
 	float TestTickTime = 0.0;
+	
 
+	// положение на клиенте в момент старата передачи на сервер (в первый момент активности игрока)  
+	FTransform CachedReplicatedTransform;
+
+	// клиентская локальная симуляция
+	FVector Velocity;
+	private:
+
+	void SimulateMove(FGoKartMove);
+	                   
+	
 };
 
 
