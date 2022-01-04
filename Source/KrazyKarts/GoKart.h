@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
+#include "TypeHash.h"
+
 #include "GoKart.generated.h"
+
+
 
 USTRUCT()
 struct FGoKartMove
@@ -22,8 +26,25 @@ struct FGoKartMove
 	float DeltaTime;
 
 	UPROPERTY()
-	float Time;	
+	float Time;
+
+	///если буду использвать TSet вместо TArray, раскоменить эти куски
+	/*uint32 GetTypeHash() const
+	{
+		return *(uint32*)&Time;
+
+	}
+	
+	friend bool operator==(const FGoKartMove& first, const FGoKartMove& second)
+	{
+		return (first.Time == second.Time);
+	}*/
 };
+///если буду использвать TSet раскоменить эти куски
+/*FORCEINLINE uint32 GetTypeHash(const FGoKartMove& other)
+{
+	return other.GetTypeHash();
+}*/
 
 USTRUCT()
 struct FGoKartState
@@ -57,7 +78,7 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void UpdateLocationFromVelocty(float DeltaTime);
-	void ApplyRotation(float DeltaTime);
+	void ApplyRotation(FGoKartMove Move);
 
 	//силы действующие на авто против движеня 
 	FVector  GetAirResistance();
@@ -111,6 +132,7 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
 	FGoKartState ServerState;
 
+	//клиентская ф-я. Апдейтит положение актора на клиенте при репликации структуры FGoKartState с сервера
 	UFUNCTION()
 	void OnRep_ServerState();
 
@@ -118,26 +140,31 @@ protected:
 
 private:
 	
-	// поброс маппингов форвард движения из уе. Реплицируются для того чтобы при лагах был известен последннее направление движения,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
-	UPROPERTY(Replicated)
+	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
+	UPROPERTY()
 	float Throttle;
 
-	//проброс маппингов поворота из уе. Реплицируются для того чтобы при лагах был известно последннее направление поворота,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
-	UPROPERTY(Replicated)
+	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
+	UPROPERTY()
 	float SteeringTrow;
 
 	//тестовая переменная которая чсчитает время - накапливает тик
 	float TestTickTime = 0.0;
-	
-
-	// положение на клиенте в момент старата передачи на сервер (в первый момент активности игрока)  
-	FTransform CachedReplicatedTransform;
 
 	// клиентская локальная симуляция
 	FVector Velocity;
-	private:
 
-	void SimulateMove(FGoKartMove);
+
+private:
+
+	void SimulateMove(const FGoKartMove&);
+
+	FGoKartMove CreateMove(float DeltaTime);
+
+	//TSet<FGoKartMove> UnacknolegedMoves;
+	TArray<FGoKartMove> UnacknolegedMoves;
+
+	void ClearAcknoladgedMoves(FGoKartMove LastMove);
 	                   
 	
 };
