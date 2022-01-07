@@ -6,7 +6,41 @@
 #include "Components/ActorComponent.h"
 #include "GoKartMovementComponent.generated.h"
 
-struct FGoKartMove;
+USTRUCT()
+struct FGoKartMove
+{
+	GENERATED_USTRUCT_BODY()
+	// поброс маппингов форвард движения из уе. Реплицируются для того чтобы при лагах был известен последннее направление движения,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY()
+	float Throttle;
+
+	//проброс маппингов поворота из уе. Реплицируются для того чтобы при лагах был известно последннее направление поворота,  для правильного подсчета на клиенте, обьекта СимулейтедПрокси сервера.
+	UPROPERTY()
+	float SteeringTrow;
+
+	UPROPERTY()
+	float DeltaTime;
+
+	UPROPERTY()
+	float Time;
+
+	///если буду использвать TSet вместо TArray, раскоменить эти куски
+	/*uint32 GetTypeHash() const
+	{
+		return *(uint32*)&Time;
+
+	}
+	
+	friend bool operator==(const FGoKartMove& first, const FGoKartMove& second)
+	{
+		return (first.Time == second.Time);
+	}*/
+};
+///если буду использвать TSet раскоменить эти куски
+/*FORCEINLINE uint32 GetTypeHash(const FGoKartMove& other)
+{
+	return other.GetTypeHash();
+}*/
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
