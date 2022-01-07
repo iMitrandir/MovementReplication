@@ -8,7 +8,7 @@
 
 #include "GoKart.generated.h"
 
-
+class UGoKartMovementComponent;
 
 USTRUCT()
 struct FGoKartMove
@@ -77,13 +77,6 @@ protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/*void UpdateLocationFromVelocty(float DeltaTime);
-	void ApplyRotation(FGoKartMove Move);
-
-	//силы действующие на авто против движеня 
-	FVector  GetAirResistance();
-	FVector  GetRollingResistance();*/
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -91,6 +84,8 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))	
+	UGoKartMovementComponent* GoKartMovementComponent;
 
 protected:
 	UFUNCTION()
@@ -102,72 +97,22 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SendMove(FGoKartMove Value);
 	
-
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	// float Speed = 20.f;
-
-	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float MaxDegreesPerSecond = 90.f;*/
-
-	/*//Mass of object in (kg)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float Mass = 1000.f;
-
-	//максимальная сила которая может быть приложена к средству (N)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float MaxDrivingForce = 10000.f;
-
-	//коефициент аэоодинамики, чем он больше, тем больше будет AirResistance
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float DragCoefficient = 16.f;
-
-	//коефициент трения, чем он больше, тем больше будет RollResistance
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float RollResistanceCoefficient = 0.015f;
-
-	//радиус поворота мошины
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float RotationCircleRadius = 10.f;*/
-
 	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
 	FGoKartState ServerState;
 
-	//клиентская ф-я. Апдейтит положение актора на клиенте при репликации структуры FGoKartState с сервера
-	UFUNCTION()
-	void OnRep_ServerState();
-
-
-
 private:
 	
-	/*// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
-	UPROPERTY()
-	float Throttle;
-
-	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
-	UPROPERTY()
-	float SteeringTrow;*/
-
 	//тестовая переменная которая чсчитает время - накапливает тик
 	float TestTickTime = 0.0;
-
-	/*
-	// клиентская локальная симуляция
-	FVector Velocity;
-	*/
-
-
-private:
-
-	/*void SimulateMove(const FGoKartMove&);
-
-	FGoKartMove CreateMove(float DeltaTime);*/
-
+	
 	//TSet<FGoKartMove> UnacknolegedMoves;
 	TArray<FGoKartMove> UnacknolegedMoves;
 
 	void ClearAcknoladgedMoves(FGoKartMove LastMove);
-	                   
+
+	//клиентская ф-я. Апдейтит положение актора на клиенте при репликации структуры FGoKartState с сервера
+	UFUNCTION()
+	void OnRep_ServerState();	                   
 	
 };
 

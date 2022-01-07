@@ -6,6 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "GoKartMovementComponent.generated.h"
 
+struct FGoKartMove;
+
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class KRAZYKARTS_API UGoKartMovementComponent : public UActorComponent
@@ -43,12 +45,14 @@ public:
 	//радиус поворота мошины
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float RotationCircleRadius = 10.f;
+	
+	FORCEINLINE void SetThrottle(float Val) {Throttle = Val;};
+	FORCEINLINE void SetSteeringTrow(float Val) {SteeringTrow = Val;};
+	
+	FORCEINLINE FVector GetVelocity() {return Velocity; };
+	FORCEINLINE void SetVelocity(FVector NewVelocity) {Velocity = NewVelocity;};
 
 private:
-
-	void SimulateMove(const FGoKartMove&);
-
-	FGoKartMove CreateMove(float DeltaTime);
 
 	void UpdateLocationFromVelocty(float DeltaTime);
 	void ApplyRotation(FGoKartMove Move);
@@ -63,10 +67,14 @@ private:
 
 	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
 	UPROPERTY()
-	float SteeringTrow;
-
+	float SteeringTrow;	
+	
 	// клиентская локальная симуляция
 	FVector Velocity;
 
+public:	
+	void SimulateMove(const FGoKartMove&);
+
+	FGoKartMove CreateMove(float DeltaTime); 
 	
 };
