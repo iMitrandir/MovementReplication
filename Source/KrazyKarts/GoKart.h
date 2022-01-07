@@ -77,12 +77,12 @@ protected:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	void UpdateLocationFromVelocty(float DeltaTime);
+	/*void UpdateLocationFromVelocty(float DeltaTime);
 	void ApplyRotation(FGoKartMove Move);
 
 	//силы действующие на авто против движеня 
 	FVector  GetAirResistance();
-	FVector  GetRollingResistance();
+	FVector  GetRollingResistance();*/
 
 public:	
 	// Called every frame
@@ -109,7 +109,7 @@ protected:
 	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float MaxDegreesPerSecond = 90.f;*/
 
-	//Mass of object in (kg)
+	/*//Mass of object in (kg)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float Mass = 1000.f;
 
@@ -127,7 +127,7 @@ protected:
 
 	//радиус поворота мошины
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
-	float RotationCircleRadius = 10.f;
+	float RotationCircleRadius = 10.f;*/
 
 	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
 	FGoKartState ServerState;
@@ -140,26 +140,28 @@ protected:
 
 private:
 	
-	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
+	/*// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
 	UPROPERTY()
 	float Throttle;
 
 	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
 	UPROPERTY()
-	float SteeringTrow;
+	float SteeringTrow;*/
 
 	//тестовая переменная которая чсчитает время - накапливает тик
 	float TestTickTime = 0.0;
 
+	/*
 	// клиентская локальная симуляция
 	FVector Velocity;
+	*/
 
 
 private:
 
-	void SimulateMove(const FGoKartMove&);
+	/*void SimulateMove(const FGoKartMove&);
 
-	FGoKartMove CreateMove(float DeltaTime);
+	FGoKartMove CreateMove(float DeltaTime);*/
 
 	//TSet<FGoKartMove> UnacknolegedMoves;
 	TArray<FGoKartMove> UnacknolegedMoves;
