@@ -37,7 +37,6 @@ static FString GetEnumRole (ENetRole Role)
 void AGoKart::BeginPlay()
 {
 	Super::BeginPlay();
-
 	
 	//просимулируем разные интервалы для репликации (раз в секунду)
 	if(HasAuthority())

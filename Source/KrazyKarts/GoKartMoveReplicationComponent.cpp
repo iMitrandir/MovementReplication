@@ -39,66 +39,38 @@ void UGoKartMoveReplicationComponent::GetLifetimeReplicatedProps(TArray<FLifetim
 void UGoKartMoveReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	/*
-	// на клиенте (AutonomousProxy) создаем структуру и заполняем параметры, затем передаем данные на сервер через PRC
-	 
-	if(IsLocallyControlled())
-	{
-		FGoKartMove Move = CreateMove(DeltaTime);
-
-        //IsLocallyControlled() будет тру и для сервера если на нем играет игрок (хостит игру), но Он_Реп там вызываться не будет(репликации для него не будет так как он и так как он играет на сервере на прямую), по этому делаем дополнительный чек так как этот массив нужен только для симуляции на удаленных клиентах
-		if(HasAuthority() != true)
-		{
-			UnacknolegedMoves.Add(Move);
-			//UE_LOG(LogTemp,Warning, TEXT("%s On %s Que length %d"),*GetName(), *GetEnumRole(GetRemoteRole()), UnacknolegedMoves.Num());
-		}
-
-		if(HasAuthority() != true)
-		{
-			//server sim, если убрать if b если игрок будет у себя хостить игру(будет играть непрямую на сервере сам), то сенд мув сразу будет срабатывать имплементейшн, где йже прописан СимулейтМув, а потом будет срабатывать второй раз СимулейтМув ниже. По этому тут нужен if который скажет , что эту РПС нужно ыполнять только удаленным клиентам
-			Server_SendMove(Move);
-		}
-		//local sim
-		SimulateMove(Move);
-		
-	}
-	*/
-
-	if(GoKartMovementComponent == nullptr) return;
 	
-	//на удаленном клиенте(см обьяснение  выше там такая же логика только растянутая)  
+	if(GoKartMovementComponent == nullptr) return;
+
+	FGoKartMove LastMove = GoKartMovementComponent->GetLastMove();
+	//Клиент симулирует последовательность передвижений с опережением сервера, но считывает эту последовательность не прямо из инпута, а из массива структур. По ходу дела Создаем на удаленном клиенте. Массив структур хранит последовательность передвижений на клиенте, для послудующего сравнения с серверным последним движением отправленым на клиент. После сравнения на клиенте, все мувы которые старые (просимулированы на серве, тоесть UnAccnowledgedMoves[i]<ServerLastMove) отбрасываются, а мувы которые еще не просимулированы на сервере UnAccnowledgedMoves[i]>ServerLastMove проигрываются на клиенте(циклом в Simulate). Сравнение происходит с помошью временого штампа. Тоесть типа приходит на клиент сообщение, что на сервере был проигран мув с временным штампом Х, по этому нужно удалить все мувы временные штампы которых меньше Х, но проиграть все мувы временные штампы которых больше Х. Грубо говоря инпут записывается в буфер, а потом проигрывается или же вносятся поправки если в течении лага, что-то кардианально поменялось в синхронизации клиента и сервера.  
 	if(GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		FGoKartMove Move = GoKartMovementComponent->CreateMove(DeltaTime);
-		UnacknolegedMoves.Add(Move);
-		Server_SendMove(Move);
-		GoKartMovementComponent->SimulateMove(Move);
+		UE_LOG(LogTemp, Warning, TEXT("UnacknolegedMoves = %d"), UnacknolegedMoves.Num());
+		UnacknolegedMoves.Add(LastMove);
+		Server_SendMove(LastMove);
 	}
 	
 	// на сервере (см обьяснение  выше там такая же логика только растянутая)
 	if(GetOwner()->GetRemoteRole() == ROLE_SimulatedProxy && GetOwner()->GetLocalRole() == ROLE_Authority)
 	{
-		FGoKartMove Move = GoKartMovementComponent->CreateMove(DeltaTime);
-		Server_SendMove(Move);
-
+		UpdateServerState(LastMove);
 	}
-	//чтобы избежать прыгания с точки на точку введем плавную симуляция движения серверного павна на клиенте между моментами репликации, 
+
 	if(GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
+		//UE_LOG(LogTemp, Warning, TEXT("Move Location = %s"), *ServerState.Transform.GetLocation().ToString()); 
 		GoKartMovementComponent->SimulateMove(ServerState.LastMove); 
 	}
-
-	/*if(GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Move Location = %s"), *ServerState.Transform.GetLocation().ToString()); 
-	}*/
+	 
 }
 
-void UGoKartMoveReplicationComponent::ClearAcknoladgedMoves(FGoKartMove LastMove)
+void UGoKartMoveReplicationComponent:: ClearAcknoladgedMoves(FGoKartMove LastMove)
 {
 	//TSet<FGoKartMove> NewMoves;
-	TArray<FGoKartMove> NewMoves;
+	TArray<FGoKartMove> NewMoves; // мувы совершенные на клиенте, но еще не просимулированные на сервере
 
+	//мувы которые опережают мув пришедший с серва, сохраняем чтобы потом просимулировать
 	for(const FGoKartMove& Move : UnacknolegedMoves)
 	{
 		if(Move.Time > LastMove.Time)
@@ -114,10 +86,8 @@ void UGoKartMoveReplicationComponent::Server_SendMove_Implementation(FGoKartMove
 	if(GoKartMovementComponent == nullptr) return;
 	
 	GoKartMovementComponent->SimulateMove(Move); 
-	ServerState.LastMove = Move;
-	ServerState.Transform = GetOwner()->GetActorTransform();
-	ServerState.Velocity = GoKartMovementComponent->GetVelocity();
 
+	UpdateServerState(Move);
 }
 
 bool UGoKartMoveReplicationComponent::Server_SendMove_Validate(FGoKartMove Value)
@@ -133,18 +103,27 @@ void UGoKartMoveReplicationComponent::OnRep_ServerState()
 	{
 		UE_LOG(LogTemp,Warning, TEXT("Replicated location for ROLE_SimulatedProxy"));
 	}
-
 	
-	// если Autonomous or Simulated клиент - утанови положение актора из реплицуированой переменной. Слой поверх локальной симуляции. SetActorLocation происходит периодически только на клиенте
+	// на Autonomous or Simulated клиент - утанови положение актора из реплицуированой переменной, синхронизирует поворот. Слой поверх локальной симуляции. SetActorLocation происходит периодически только на клиентах.
+	//тоесть вначале синхронизируется положение с сервером, а потом проигрывается из откорректированого массива то что было отсимулировано на клиенте с этого момента
 	GetOwner()->SetActorTransform(ServerState.Transform);
 	GoKartMovementComponent->SetVelocity(ServerState.Velocity);
+	
 
-	//когда получили с сервера ServerState, схранить только те локальные стейты которые опрежают серверный стейт   
+	//обоновляет UnacknolegedMoves массив. когда получили с сервера ServerState (сервер реплицировал на клиенты изменившиеся данные), схранить только те локальные стейты которые опрежают серверный стейт. Нужно для того чтобы массив АнакновледжедМувс не рос, а постоянно удалались устаревшие локальные движения, 
 	ClearAcknoladgedMoves(ServerState.LastMove);
 
+	//и проигрывание происходило от последнего  пришедшего с сервера Мува и дальше по записанным локально Мувам   
 	for(const FGoKartMove& Move : UnacknolegedMoves)
 	{
 		GoKartMovementComponent->SimulateMove(Move);
 	}
+}
+
+void UGoKartMoveReplicationComponent::UpdateServerState(const FGoKartMove& LastMove)
+{
+	ServerState.LastMove = LastMove;
+	ServerState.Transform = GetOwner()->GetActorTransform();
+	ServerState.Velocity = GoKartMovementComponent->GetVelocity();
 }
 

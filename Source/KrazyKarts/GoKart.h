@@ -35,8 +35,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))	
 	UGoKartMovementComponent* GoKartMovementComponent;
 
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))	 
 	UGoKartMoveReplicationComponent* MovementReplicator;
+	
 	
 	UFUNCTION()
 	void MoveForward(float Value);

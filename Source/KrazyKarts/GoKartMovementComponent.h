@@ -102,13 +102,17 @@ private:
 	// маппинги направления дыижения для локальной симуляции. На сервер посылается структура содержашая в себе такие же парамтеры.
 	UPROPERTY()
 	float SteeringTrow;	
-	
+	                                                         
 	// клиентская локальная симуляция
 	FVector Velocity;
 
-public:	
+	FGoKartMove LastMove;
+	
+	FGoKartMove CreateMove(float DeltaTime);
+	
+public:
+	
 	void SimulateMove(const FGoKartMove&);
-
-	FGoKartMove CreateMove(float DeltaTime); 
+	FGoKartMove GetLastMove() {return LastMove;};
 	
 };

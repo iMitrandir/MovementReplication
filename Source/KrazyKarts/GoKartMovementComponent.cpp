@@ -3,6 +3,7 @@
 
 
 #include "GoKartMovementComponent.h"
+#include "GoKartMoveReplicationComponent.h"
 #include "GoKart.h"
 
 // Sets default values for this component's properties
@@ -29,7 +30,11 @@ void UGoKartMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
+	if(GetOwner()->GetLocalRole() == ROLE_AutonomousProxy || GetOwner()->GetRemoteRole() ==ROLE_SimulatedProxy)
+	{
+		LastMove = CreateMove(DeltaTime);
+		SimulateMove(LastMove);
+	}
 }
 
 void UGoKartMovementComponent::UpdateLocationFromVelocty(float DeltaTime)
