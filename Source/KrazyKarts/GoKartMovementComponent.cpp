@@ -12,7 +12,7 @@ UGoKartMovementComponent::UGoKartMovementComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-	
+	//Velocity = FVector::ZeroVector; 
 	// ...
 }
 
@@ -22,6 +22,7 @@ void UGoKartMovementComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// ...
+
 	
 }
 
@@ -35,6 +36,12 @@ void UGoKartMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 		LastMove = CreateMove(DeltaTime);
 		SimulateMove(LastMove);
 	}
+}
+
+FVector UGoKartMovementComponent::GetVelocity() const
+{
+	//UE_LOG(LogTemp, Warning,TEXT("UGoKartMovementComponent Velocity = %f"), Velocity.Size());
+	return Velocity;
 }
 
 void UGoKartMovementComponent::UpdateLocationFromVelocty(float DeltaTime)

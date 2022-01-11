@@ -8,8 +8,20 @@
 
 #include "GoKartMoveReplicationComponent.generated.h"
 
-/*struct FGoKartMove;
-struct FGoKartState;*/
+struct FHermitCubicSpline
+{
+	FVector StartLocation,
+			StartDerivative,
+			TargetLocation,
+			TargetDerivative;
+
+	FVector InterpolateLocation(float LerpRatio) const {return FMath::CubicInterp(StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);};
+
+	FVector InterpolateLocationLinear(float LerpRatio) const {return FMath::LerpStable(StartLocation, TargetLocation, LerpRatio);};
+	
+	FVector InterpolateDerivative(float LerpRatio) const {return FMath::CubicInterpDerivative(StartLocation, StartDerivative, TargetLocation, TargetDerivative, LerpRatio);}; 
+};
+
 USTRUCT()
 struct FGoKartState
 {
@@ -54,6 +66,7 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+
 private:
 	
 	void ClearAcknoladgedMoves(FGoKartMove LastMove);
@@ -71,8 +84,47 @@ private:
 	UFUNCTION()
 	void OnRep_ServerState();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))	
+	void AutonomousProxy_OnRep_ServerState();// ОнРеп выполняемы на айтономойс киеенте
+	void SimulatedProxy_OnRep_ServerState();// ОнРеп часть выполняемая на сим прокси
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"), Category = "Movement Replication")	
 	UGoKartMovementComponent* GoKartMovementComponent;
 
 	void UpdateServerState(const FGoKartMove& LastMove);
+
+	void Client_Tick(float DelatTime); // ф-я симуляции линейной интераоляции на сим прокси
+
+	// СОЗДАНИЕ СТРУКТУРНОЙ ПЕРМЕННОЙ, сбор данных для формирования сплайна
+	FHermitCubicSpline CreateSpline();
+
+	// процесс движение вдоль кривой
+	void InterpolateSpline(float LerpRatio, const FHermitCubicSpline& Spline);
+
+	//
+	float VelocityToDerivative() {return (Client_TimeBetweenLastUpdates*100.f);};// 100 это перевод из см в метры, так как у нас скорость в м\с, а в анриале расстояние в см 
+
+	// рассчет и установка Velocity исходя из направления движени	
+	void InterpolateVelocity(float LerpRatio, const FHermitCubicSpline& Spline);  
+
+	void InterpolateRotation(float LerpRatio);	
+	
+	float Client_TimeSinceUpdate; // время прошедшее с последего обновления позции на сим прокси
+	float Client_TimeBetweenLastUpdates; // время между двумя ОнРеп
+
+	FVector ClientStartVelocity; //
+
+	FTransform Client_StartTransform;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"), Category = "Movement Replication")
+	USceneComponent*  MeshOffsetRoot;
+
+	UFUNCTION(BlueprintCallable)
+	void SetMeshOffsetRoot(USceneComponent*  OffsetRoot) {MeshOffsetRoot = OffsetRoot;};
+	
 };
+
+
+
+
+
+

@@ -80,11 +80,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement") 
 	float RotationCircleRadius = 10.f;
 	
-	FORCEINLINE void SetThrottle(float Val) {Throttle = Val;};
-	FORCEINLINE void SetSteeringTrow(float Val) {SteeringTrow = Val;};
+	void SetThrottle(float Val) {Throttle = Val;};
+	void SetSteeringTrow(float Val) {SteeringTrow = Val;};
 	
-	FORCEINLINE FVector GetVelocity() {return Velocity; };
-	FORCEINLINE void SetVelocity(FVector NewVelocity) {Velocity = NewVelocity;};
+	FVector GetVelocity() const;
+	void SetVelocity(FVector NewVelocity) {Velocity = NewVelocity;};
 
 private:
 
@@ -109,6 +109,8 @@ private:
 	FGoKartMove LastMove;
 	
 	FGoKartMove CreateMove(float DeltaTime);
+
+	
 	
 public:
 	

@@ -5,6 +5,7 @@
 #include "UnrealNetwork.h"
 #include "GoKart.h"
 #include "GoKartMovementComponent.h"
+#include "Math/UnrealMathVectorCommon.h"
 
 // Sets default values for this component's properties
 UGoKartMoveReplicationComponent::UGoKartMoveReplicationComponent()
@@ -14,9 +15,7 @@ UGoKartMoveReplicationComponent::UGoKartMoveReplicationComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 
 	SetIsReplicatedByDefault(true);	 
-
 }
-
 
 // Called when the game starts
 void UGoKartMoveReplicationComponent::BeginPlay()
@@ -24,7 +23,7 @@ void UGoKartMoveReplicationComponent::BeginPlay()
 	Super::BeginPlay();
 
 	GoKartMovementComponent = GetOwner()->FindComponentByClass<UGoKartMovementComponent>();
-	
+	//MeshOffsetRoot = GetOwner()->FindComponentByClass<USceneComponent>();
 }
 
 void UGoKartMoveReplicationComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -33,7 +32,6 @@ void UGoKartMoveReplicationComponent::GetLifetimeReplicatedProps(TArray<FLifetim
 
 	DOREPLIFETIME(UGoKartMoveReplicationComponent, ServerState);
 }
-
 
 // Called every frame
 void UGoKartMoveReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -46,7 +44,7 @@ void UGoKartMoveReplicationComponent::TickComponent(float DeltaTime, ELevelTick 
 	//Клиент симулирует последовательность передвижений с опережением сервера, но считывает эту последовательность не прямо из инпута, а из массива структур. По ходу дела Создаем на удаленном клиенте. Массив структур хранит последовательность передвижений на клиенте, для послудующего сравнения с серверным последним движением отправленым на клиент. После сравнения на клиенте, все мувы которые старые (просимулированы на серве, тоесть UnAccnowledgedMoves[i]<ServerLastMove) отбрасываются, а мувы которые еще не просимулированы на сервере UnAccnowledgedMoves[i]>ServerLastMove проигрываются на клиенте(циклом в Simulate). Сравнение происходит с помошью временого штампа. Тоесть типа приходит на клиент сообщение, что на сервере был проигран мув с временным штампом Х, по этому нужно удалить все мувы временные штампы которых меньше Х, но проиграть все мувы временные штампы которых больше Х. Грубо говоря инпут записывается в буфер, а потом проигрывается или же вносятся поправки если в течении лага, что-то кардианально поменялось в синхронизации клиента и сервера.  
 	if(GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UnacknolegedMoves = %d"), UnacknolegedMoves.Num());
+		//UE_LOG(LogTemp, Warning, TEXT("UnacknolegedMoves = %d"), UnacknolegedMoves.Num());
 		UnacknolegedMoves.Add(LastMove);
 		Server_SendMove(LastMove);
 	}
@@ -59,10 +57,74 @@ void UGoKartMoveReplicationComponent::TickComponent(float DeltaTime, ELevelTick 
 
 	if(GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
+		/*
+		 * 		//движения без интерполяции, а просто скачками при высоком лагедля сим прокси 
 		//UE_LOG(LogTemp, Warning, TEXT("Move Location = %s"), *ServerState.Transform.GetLocation().ToString()); 
-		GoKartMovementComponent->SimulateMove(ServerState.LastMove); 
+
+		//GoKartMovementComponent->SimulateMove(ServerState.LastMove);
+		*/
+
+		// плавная интерполяция между 2мя точками для сим прокси. Но при высоком лаге не успевает за сервером
+		Client_Tick(DeltaTime);
 	}
 	 
+}
+
+void UGoKartMoveReplicationComponent::Client_Tick(float DeltaTime)
+{
+	Client_TimeSinceUpdate+=DeltaTime;
+
+	//проверка на то что  TimeBetweenLastUpdates не является слишкоммаленьким числом близким к 0, если это не так - значит это первый апдейт, его пропускаем. 
+	if(Client_TimeBetweenLastUpdates == KINDA_SMALL_NUMBER) return;
+	if(GoKartMovementComponent == nullptr) {return;}
+	
+	float LerpRatio = Client_TimeSinceUpdate/Client_TimeBetweenLastUpdates;
+
+	FHermitCubicSpline Spline =  CreateSpline();
+
+	/// интерполяция движения - пример линейной интерполЯции 
+	/*FVector NewLocation = InterpolateLocationLinear(LerpRatio);// linear interp
+	GetOwner()->SetActorLocation(NewLocation);*/
+
+	InterpolateSpline(LerpRatio, Spline);
+    	
+	InterpolateVelocity(LerpRatio, Spline);
+	
+	InterpolateRotation(LerpRatio);
+}
+
+FHermitCubicSpline UGoKartMoveReplicationComponent::CreateSpline()
+{
+	//	проигрывание  интерполяции в тике для SimProx
+	FHermitCubicSpline Spline;
+	Spline.StartLocation = Client_StartTransform.GetLocation();
+	Spline.TargetLocation = ServerState.Transform.GetLocation();
+	
+	Spline.StartDerivative = (ClientStartVelocity * VelocityToDerivative());
+	Spline.TargetDerivative = ServerState.Velocity * VelocityToDerivative();
+	return Spline; 
+	
+}
+
+void UGoKartMoveReplicationComponent::InterpolateSpline(float LerpRatio, const FHermitCubicSpline& Spline)
+{
+	FVector NewLocation = Spline.InterpolateLocation(LerpRatio);
+	GetOwner()->SetActorLocation(NewLocation);
+}
+
+void UGoKartMoveReplicationComponent::InterpolateVelocity(float LerpRatio, const FHermitCubicSpline& Spline)
+{
+	// рассчет и установка Velocity исходя из направления движени
+	FVector NewDerivative = Spline.InterpolateDerivative(LerpRatio);//
+	FVector NewVelocity = NewDerivative / VelocityToDerivative();
+
+	GoKartMovementComponent->SetVelocity(NewVelocity);
+}
+
+void UGoKartMoveReplicationComponent::InterpolateRotation(float LerpRatio)
+{
+	// проигрвыние интерполяции поворота в тике для SimProx
+	GetOwner()->SetActorRotation(FQuat::Slerp(FQuat(Client_StartTransform.GetRotation()), FQuat(ServerState.Transform.GetRotation()), LerpRatio));
 }
 
 void UGoKartMoveReplicationComponent:: ClearAcknoladgedMoves(FGoKartMove LastMove)
@@ -97,11 +159,26 @@ bool UGoKartMoveReplicationComponent::Server_SendMove_Validate(FGoKartMove Value
 
 void UGoKartMoveReplicationComponent::OnRep_ServerState()
 {
+	switch (GetOwner()->GetLocalRole())
+	{
+	case ROLE_SimulatedProxy: SimulatedProxy_OnRep_ServerState();
+		break;
+	case ROLE_AutonomousProxy:AutonomousProxy_OnRep_ServerState(); 
+		break;
+
+	default:
+		break;
+	}
+
+}
+
+void UGoKartMoveReplicationComponent::AutonomousProxy_OnRep_ServerState()
+{
 	//UE_LOG(LogTemp,Warning, TEXT("Replicated location"));
 	if(GoKartMovementComponent == nullptr) return;    
 	if(GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
-		UE_LOG(LogTemp,Warning, TEXT("Replicated location for ROLE_SimulatedProxy"));
+		//UE_LOG(LogTemp,Warning, TEXT("Replicated location for ROLE_SimulatedProxy"));
 	}
 	
 	// на Autonomous or Simulated клиент - утанови положение актора из реплицуированой переменной, синхронизирует поворот. Слой поверх локальной симуляции. SetActorLocation происходит периодически только на клиентах.
@@ -113,11 +190,27 @@ void UGoKartMoveReplicationComponent::OnRep_ServerState()
 	//обоновляет UnacknolegedMoves массив. когда получили с сервера ServerState (сервер реплицировал на клиенты изменившиеся данные), схранить только те локальные стейты которые опрежают серверный стейт. Нужно для того чтобы массив АнакновледжедМувс не рос, а постоянно удалались устаревшие локальные движения, 
 	ClearAcknoladgedMoves(ServerState.LastMove);
 
-	//и проигрывание происходило от последнего  пришедшего с сервера Мува и дальше по записанным локально Мувам   
+	
+	//для AutonomousProxy -  проигрывание происходило от последнего  пришедшего с сервера Мува и дальше по записанным локально Мувам   
 	for(const FGoKartMove& Move : UnacknolegedMoves)
 	{
 		GoKartMovementComponent->SimulateMove(Move);
 	}
+}
+
+void UGoKartMoveReplicationComponent::SimulatedProxy_OnRep_ServerState()
+{
+	if(GoKartMovementComponent == nullptr) return;
+	
+	Client_TimeBetweenLastUpdates = Client_TimeSinceUpdate; // только получили новый апдейт. и время между пердыдущим (при условии что подсчет ведется от 0) апдейтом и текущим-полученным будет = натиканому таймеру  
+
+	Client_TimeSinceUpdate = 0; // так как получили новый апдейт, сбросим натиканный таймер в 0, чтобы увеличивать время от нуля до след апдейта
+
+	Client_StartTransform = GetOwner()->GetActorTransform();
+	//ClientStartVelocity = GoKartMovementComponent->GetVelocity();
+	ClientStartVelocity = ServerState.Velocity;
+
+	UE_LOG(LogTemp,Warning, TEXT("Velocity vec len = %f"),   GoKartMovementComponent->GetVelocity().Size()); 
 }
 
 void UGoKartMoveReplicationComponent::UpdateServerState(const FGoKartMove& LastMove)
