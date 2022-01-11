@@ -109,7 +109,7 @@ FHermitCubicSpline UGoKartMoveReplicationComponent::CreateSpline()
 void UGoKartMoveReplicationComponent::InterpolateSpline(float LerpRatio, const FHermitCubicSpline& Spline)
 {
 	FVector NewLocation = Spline.InterpolateLocation(LerpRatio);
-	GetOwner()->SetActorLocation(NewLocation);
+	MeshOffsetRoot->SetWorldLocation(NewLocation);
 }
 
 void UGoKartMoveReplicationComponent::InterpolateVelocity(float LerpRatio, const FHermitCubicSpline& Spline)
@@ -124,7 +124,7 @@ void UGoKartMoveReplicationComponent::InterpolateVelocity(float LerpRatio, const
 void UGoKartMoveReplicationComponent::InterpolateRotation(float LerpRatio)
 {
 	// проигрвыние интерполяции поворота в тике для SimProx
-	GetOwner()->SetActorRotation(FQuat::Slerp(FQuat(Client_StartTransform.GetRotation()), FQuat(ServerState.Transform.GetRotation()), LerpRatio));
+	MeshOffsetRoot->SetWorldRotation(FQuat::Slerp(FQuat(Client_StartTransform.GetRotation()), FQuat(ServerState.Transform.GetRotation()), LerpRatio));
 }
 
 void UGoKartMoveReplicationComponent:: ClearAcknoladgedMoves(FGoKartMove LastMove)
@@ -206,11 +206,14 @@ void UGoKartMoveReplicationComponent::SimulatedProxy_OnRep_ServerState()
 
 	Client_TimeSinceUpdate = 0; // так как получили новый апдейт, сбросим натиканный таймер в 0, чтобы увеличивать время от нуля до след апдейта
 
-	Client_StartTransform = GetOwner()->GetActorTransform();
+	//Client_StartTransform = GetOwner()->GetActorTransform();
+	Client_StartTransform = MeshOffsetRoot->GetComponentTransform();	 
+
 	//ClientStartVelocity = GoKartMovementComponent->GetVelocity();
 	ClientStartVelocity = ServerState.Velocity;
 
-	UE_LOG(LogTemp,Warning, TEXT("Velocity vec len = %f"),   GoKartMovementComponent->GetVelocity().Size()); 
+	GetOwner()->SetActorTransform(ServerState.Transform);
+	//UE_LOG(LogTemp,Warning, TEXT("Velocity vec len = %f"),		GoKartMovementComponent->GetVelocity().Size()); 
 }
 
 void UGoKartMoveReplicationComponent::UpdateServerState(const FGoKartMove& LastMove)
