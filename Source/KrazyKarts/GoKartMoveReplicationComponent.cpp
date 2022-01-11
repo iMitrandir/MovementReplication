@@ -47,6 +47,7 @@ void UGoKartMoveReplicationComponent::TickComponent(float DeltaTime, ELevelTick 
 		//UE_LOG(LogTemp, Warning, TEXT("UnacknolegedMoves = %d"), UnacknolegedMoves.Num());
 		UnacknolegedMoves.Add(LastMove);
 		Server_SendMove(LastMove);
+
 	}
 	
 	// на сервере (см обьяснение  выше там такая же логика только растянутая)
@@ -145,8 +146,10 @@ void UGoKartMoveReplicationComponent:: ClearAcknoladgedMoves(FGoKartMove LastMov
 
 void UGoKartMoveReplicationComponent::Server_SendMove_Implementation(FGoKartMove Move)
 {
+	Client_SimulatedTimeCounter	+= Move.DeltaTime;
+
 	if(GoKartMovementComponent == nullptr) return;
-	
+
 	GoKartMovementComponent->SimulateMove(Move); 
 
 	UpdateServerState(Move);
@@ -154,7 +157,16 @@ void UGoKartMoveReplicationComponent::Server_SendMove_Implementation(FGoKartMove
 
 bool UGoKartMoveReplicationComponent::Server_SendMove_Validate(FGoKartMove Value)
 {
-	return true;
+	float ProposedTime = Client_SimulatedTimeCounter + Value.DeltaTime;
+	///смысл в том, что в тике может приходить несколько одинаковых РПСб в этом случае локальный таймер сервера не будет изменяться (так как это в рамках одного тика РПС), но информация в сообщениях можо настакать. Суть такая же как если умножить просто какой-то парамтер на число, но в этом случае идет настакивание в одном тике
+	///Сравнить неизменный парамтер сервера с настаканными парамтерами из РПС 
+	bool ClientNotRunningAhead = ProposedTime > GetWorld()->TimeSeconds;
+	if(ClientNotRunningAhead)
+	{
+		UE_LOG(LogTemp,Error,TEXT("Client running too fast"));
+		return false;
+	}
+	return Value.IsValid();
 }
 
 void UGoKartMoveReplicationComponent::OnRep_ServerState()

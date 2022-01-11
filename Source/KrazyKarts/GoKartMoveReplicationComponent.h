@@ -120,6 +120,10 @@ private:
 
 	UFUNCTION(BlueprintCallable)
 	void SetMeshOffsetRoot(USceneComponent*  OffsetRoot) {MeshOffsetRoot = OffsetRoot;};
+
+	//////////////////// cheat protection //////////////////////////////////
+
+	float Client_SimulatedTimeCounter; //Сравнить неизменный парамтер сервера с настаканными в этом поле парамтерами из РПС 
 	
 };
 
